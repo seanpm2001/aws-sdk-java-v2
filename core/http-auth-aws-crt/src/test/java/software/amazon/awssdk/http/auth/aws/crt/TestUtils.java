@@ -20,7 +20,7 @@ import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.auth.aws.AwsV4aHttpSigner;
 import software.amazon.awssdk.http.auth.spi.HttpSigner;
-import software.amazon.awssdk.http.auth.spi.SyncSignRequest;
+import software.amazon.awssdk.http.auth.spi.SignRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 
 public class TestUtils {
@@ -29,13 +29,13 @@ public class TestUtils {
     private static final String TEST_VERIFICATION_PUB_Y = "865ed22a7eadc9c5cb9d2cbaca1b3699139fedc5043dc6661864218330c8e518";
 
     // Helpers for generating test requests
-    public static <T extends AwsCredentialsIdentity> SyncSignRequest<T> generateBasicRequest(
+    public static <T extends AwsCredentialsIdentity> SignRequest<T> generateBasicRequest(
         T credentials,
         Consumer<? super SdkHttpRequest.Builder> requestOverrides,
-        Consumer<? super SyncSignRequest.Builder<T>> signRequestOverrides
+        Consumer<? super SignRequest.Builder<T>> signRequestOverrides
     ) {
-        return SyncSignRequest.builder(credentials)
-                              .request(SdkHttpRequest.builder()
+        return SignRequest.builder(credentials)
+                          .request(SdkHttpRequest.builder()
                                                      .method(SdkHttpMethod.POST)
                                                      .putHeader("x-amz-archive-description", "test  test")
                                                      .putHeader("Host", "demo.us-east-1.amazonaws.com")
@@ -43,12 +43,12 @@ public class TestUtils {
                                                      .uri(URI.create("https://demo.us-east-1.amazonaws.com"))
                                                      .build()
                                                      .copy(requestOverrides))
-                              .payload(() -> new ByteArrayInputStream("{\"TableName\": \"foo\"}".getBytes()))
-                              .putProperty(AwsV4aHttpSigner.REGION_NAME, "aws-global")
-                              .putProperty(AwsV4aHttpSigner.SERVICE_SIGNING_NAME, "demo")
-                              .putProperty(HttpSigner.SIGNING_CLOCK, new TickingClock(Instant.ofEpochMilli(1596476903000L)))
-                              .build()
-                              .copy(signRequestOverrides);
+                          .payload(() -> new ByteArrayInputStream("{\"TableName\": \"foo\"}".getBytes()))
+                          .putProperty(AwsV4aHttpSigner.REGION_NAME, "aws-global")
+                          .putProperty(AwsV4aHttpSigner.SERVICE_SIGNING_NAME, "demo")
+                          .putProperty(HttpSigner.SIGNING_CLOCK, new TickingClock(Instant.ofEpochMilli(1596476903000L)))
+                          .build()
+                          .copy(signRequestOverrides);
     }
 
     public static AwsSigningConfig generateBasicSigningConfig(AwsCredentialsIdentity credentials) {

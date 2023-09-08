@@ -43,9 +43,9 @@ import software.amazon.awssdk.http.auth.aws.signer.V4RequestSigner;
 import software.amazon.awssdk.http.auth.aws.util.CredentialUtils;
 import software.amazon.awssdk.http.auth.spi.AsyncSignRequest;
 import software.amazon.awssdk.http.auth.spi.AsyncSignedRequest;
+import software.amazon.awssdk.http.auth.spi.BaseSignRequest;
 import software.amazon.awssdk.http.auth.spi.SignRequest;
-import software.amazon.awssdk.http.auth.spi.SyncSignRequest;
-import software.amazon.awssdk.http.auth.spi.SyncSignedRequest;
+import software.amazon.awssdk.http.auth.spi.SignedRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.utils.ClassLoaderHelper;
 import software.amazon.awssdk.utils.Logger;
@@ -60,7 +60,7 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
     private static final Logger LOG = Logger.loggerFor(DefaultAwsV4HttpSigner.class);
     private static final int DEFAULT_CHUNK_SIZE_IN_BYTES = 128 * 1024;
 
-    private static V4Properties v4Properties(SignRequest<?, ? extends AwsCredentialsIdentity> request) {
+    private static V4Properties v4Properties(BaseSignRequest<?, ? extends AwsCredentialsIdentity> request) {
         Clock signingClock = request.requireProperty(SIGNING_CLOCK, Clock.systemUTC());
         Instant signingInstant = signingClock.instant();
         AwsCredentialsIdentity credentials = sanitizeCredentials(request.identity());
@@ -80,7 +80,7 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
     }
 
     private static V4RequestSigner v4RequestSigner(
-        SignRequest<?, ? extends AwsCredentialsIdentity> request,
+        BaseSignRequest<?, ? extends AwsCredentialsIdentity> request,
         V4Properties v4Properties) {
 
         AuthLocation authLocation = request.requireProperty(AUTH_LOCATION, AuthLocation.HEADER);
@@ -107,7 +107,7 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
         return requestSigner.apply(v4Properties);
     }
 
-    private static Checksummer checksummer(SignRequest<?, ? extends AwsCredentialsIdentity> request) {
+    private static Checksummer checksummer(BaseSignRequest<?, ? extends AwsCredentialsIdentity> request) {
         boolean isPayloadSigning = request.requireProperty(PAYLOAD_SIGNING_ENABLED, true);
         boolean isEventStreaming = isEventStreaming(request.request());
         boolean isChunkEncoding = request.requireProperty(CHUNK_ENCODING_ENABLED, false);
@@ -147,7 +147,7 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
     }
 
     private static V4PayloadSigner v4PayloadSigner(
-        SignRequest<?, ? extends AwsCredentialsIdentity> request,
+        BaseSignRequest<?, ? extends AwsCredentialsIdentity> request,
         V4Properties properties) {
 
         boolean isPayloadSigning = request.requireProperty(PAYLOAD_SIGNING_ENABLED, true);
@@ -176,15 +176,15 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
         return V4PayloadSigner.create();
     }
 
-    private static SyncSignedRequest doSign(SyncSignRequest<? extends AwsCredentialsIdentity> request,
-                                            Checksummer checksummer,
-                                            V4RequestSigner requestSigner,
-                                            V4PayloadSigner payloadSigner) {
+    private static SignedRequest doSign(SignRequest<? extends AwsCredentialsIdentity> request,
+                                        Checksummer checksummer,
+                                        V4RequestSigner requestSigner,
+                                        V4PayloadSigner payloadSigner) {
         if (CredentialUtils.isAnonymous(request.identity())) {
-            return SyncSignedRequest.builder()
-                                    .request(request.request())
-                                    .payload(request.payload().orElse(null))
-                                    .build();
+            return SignedRequest.builder()
+                                .request(request.request())
+                                .payload(request.payload().orElse(null))
+                                .build();
         }
 
         SdkHttpRequest.Builder requestBuilder = request.request().toBuilder();
@@ -195,10 +195,10 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
 
         ContentStreamProvider payload = payloadSigner.sign(request.payload().orElse(null), v4Context);
 
-        return SyncSignedRequest.builder()
-                                .request(v4Context.getSignedRequest().build())
-                                .payload(payload)
-                                .build();
+        return SignedRequest.builder()
+                            .request(v4Context.getSignedRequest().build())
+                            .payload(payload)
+                            .build();
     }
 
     private static CompletableFuture<AsyncSignedRequest> doSign(AsyncSignRequest<? extends AwsCredentialsIdentity> request,
@@ -270,7 +270,7 @@ public final class DefaultAwsV4HttpSigner implements AwsV4HttpSigner {
     }
 
     @Override
-    public SyncSignedRequest sign(SyncSignRequest<? extends AwsCredentialsIdentity> request) {
+    public SignedRequest sign(SignRequest<? extends AwsCredentialsIdentity> request) {
         Checksummer checksummer = checksummer(request);
         V4Properties v4Properties = v4Properties(request);
         V4RequestSigner v4RequestSigner = v4RequestSigner(request, v4Properties);

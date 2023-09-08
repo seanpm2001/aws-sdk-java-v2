@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.http.Header;
 import software.amazon.awssdk.http.auth.aws.AwsV4FamilyHttpSigner.AuthLocation;
 import software.amazon.awssdk.http.auth.aws.TestUtils;
-import software.amazon.awssdk.http.auth.spi.SyncSignRequest;
-import software.amazon.awssdk.http.auth.spi.SyncSignedRequest;
+import software.amazon.awssdk.http.auth.spi.SignRequest;
+import software.amazon.awssdk.http.auth.spi.SignedRequest;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 
 /**
@@ -44,7 +44,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_WithNoAdditonalProperties_DelegatesToHeaderSigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
@@ -52,28 +52,28 @@ public class DefaultAwsV4HttpSignerTest {
             }
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("Authorization")).isPresent();
     }
 
     @Test
     public void sign_WithQueryAuthLocation_DelegatesToQuerySigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
             signRequest -> signRequest.putProperty(AUTH_LOCATION, AuthLocation.QUERY_STRING)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingRawQueryParameter("X-Amz-Signature")).isPresent();
     }
 
     @Test
     public void sign_WithHeaderAuthLocationAndExpirationDuration_Throws() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
@@ -87,7 +87,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_withAnonymousCreds_shouldNotSign() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             new TestUtils.AnonymousCredentialsIdentity(),
             httpRequest -> {
             },
@@ -95,7 +95,7 @@ public class DefaultAwsV4HttpSignerTest {
             }
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
         assertThat(signedRequest.request().firstMatchingRawQueryParameter("X-Amz-Signature"))
             .isNotPresent();
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256")).isNotPresent();
@@ -103,7 +103,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_WithQueryAuthLocationAndExpiration_DelegatesToPresignedSigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
@@ -112,14 +112,14 @@ public class DefaultAwsV4HttpSignerTest {
                 .putProperty(EXPIRATION_DURATION, Duration.ZERO)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingRawQueryParameter("X-Amz-Expires")).isPresent();
     }
 
     @Test
     public void sign_WithPayloadSigningFalse_DelegatesToUnsignedPayloadSigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
@@ -127,14 +127,14 @@ public class DefaultAwsV4HttpSignerTest {
                 .putProperty(PAYLOAD_SIGNING_ENABLED, false)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256")).hasValue("UNSIGNED-PAYLOAD");
     }
 
     @Test
     public void sign_WithEventStreamContentTypeWithoutHttpAuthAwsEventStreamModule_throws() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> httpRequest
                 .putHeader("Content-Type", "application/vnd.amazon.eventstream"),
@@ -147,7 +147,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_WithChunkEncodingTrue_DelegatesToAwsChunkedPayloadSigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> httpRequest
                 .putHeader(Header.CONTENT_LENGTH, "20"),
@@ -155,7 +155,7 @@ public class DefaultAwsV4HttpSignerTest {
                 .putProperty(CHUNK_ENCODING_ENABLED, true)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256"))
             .hasValue("STREAMING-AWS4-HMAC-SHA256-PAYLOAD");
@@ -165,7 +165,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_WithChunkEncodingTrueAndChecksumAlgorithm_DelegatesToAwsChunkedPayloadSigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> httpRequest
                 .putHeader(Header.CONTENT_LENGTH, "20"),
@@ -174,7 +174,7 @@ public class DefaultAwsV4HttpSignerTest {
                 .putProperty(CHECKSUM_ALGORITHM, CRC32)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256"))
             .hasValue("STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER");
@@ -185,7 +185,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_WithPayloadSigningFalseAndChunkEncodingTrueAndTrailer_DelegatesToAwsChunkedPayloadSigner() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> httpRequest
                 .putHeader(Header.CONTENT_LENGTH, "20"),
@@ -195,7 +195,7 @@ public class DefaultAwsV4HttpSignerTest {
                 .putProperty(CHECKSUM_ALGORITHM, CRC32)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256"))
             .hasValue("STREAMING-UNSIGNED-PAYLOAD-TRAILER");
@@ -206,7 +206,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_WithPayloadSigningFalseAndChunkEncodingTrueWithoutTrailer_Throws() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> httpRequest
                 .putHeader(Header.CONTENT_LENGTH, "20"),
@@ -220,14 +220,14 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_withChecksumAlgorithm_DelegatesToChecksummerWithThatChecksumAlgorithm() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
             signRequest -> signRequest.putProperty(CHECKSUM_ALGORITHM, CRC32)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-checksum-crc32")).isPresent();
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256")).isPresent();
@@ -235,7 +235,7 @@ public class DefaultAwsV4HttpSignerTest {
 
     @Test
     public void sign_withChecksumAlgorithmAndPayloadSigningFalse_DelegatesToChecksummerWithThatChecksumAlgorithm() {
-        SyncSignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
+        SignRequest<? extends AwsCredentialsIdentity> request = generateBasicRequest(
             AwsCredentialsIdentity.create("access", "secret"),
             httpRequest -> {
             },
@@ -244,7 +244,7 @@ public class DefaultAwsV4HttpSignerTest {
                 .putProperty(PAYLOAD_SIGNING_ENABLED, false)
         );
 
-        SyncSignedRequest signedRequest = signer.sign(request);
+        SignedRequest signedRequest = signer.sign(request);
 
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-checksum-crc32")).isPresent();
         assertThat(signedRequest.request().firstMatchingHeader("x-amz-content-sha256")).hasValue("UNSIGNED-PAYLOAD");
